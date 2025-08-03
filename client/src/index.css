@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --ff-noto-sans: "Noto Sans", sans-serif;
+    --ff-work-sans: "Work Sans", sans-serif;
+    --clr-text-primary: #111418;
+    --clr-text-secondary: #60758a;
+    --clr-bg-primary: #fff;
+    --clr-bg-secondary: #f0f2f5;
+    --clr-border-primary: #dbe0e6;
+    --clr-border-secondary: #f0f2f5;
+    --clr-accent-primary: #0c7ff2;
+    --clr-accent-text: #fff;
+  }
+
+  .dark {
+    --clr-text-primary: #fff;
+    --clr-text-secondary: #9cabba;
+    --clr-bg-primary: #111518;
+    --clr-bg-secondary: #283139;
+    --clr-border-primary: #3b4854;
+    --clr-border-secondary: #283139;
+    --clr-accent-primary: #0b80ee;
+    --clr-accent-text: #fff;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border-primary;
+  }
+  body {
+    @apply font-sans text-text-primary bg-bg-primary;
+  }
+}
