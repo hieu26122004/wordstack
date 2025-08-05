@@ -7,6 +7,10 @@ export default (sequelize, DataTypes) => {
         foreignKey: "wordId",
         as: "word",
       });
+      WordSynonym.belongsTo(models.Word, {
+        foreignKey: "synonymyId",
+        as: "wordSynonym",
+      });
     }
   }
   WordSynonym.init(

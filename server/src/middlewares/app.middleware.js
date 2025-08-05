@@ -5,6 +5,7 @@ import { returnError } from "../utils/formatter.js";
 import { verifyAT } from "../utils/crypto.js";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import dbProm from "../models/index.js";
+import redis from "../config/redis.config.js";
 import {
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
@@ -62,3 +63,27 @@ passport.use(
     }
   )
 );
+
+export const cache = (keyGenerator, defaultTtl = 3600) => {
+  return async (req, res, next) => {
+    const key = keyGenerator(req);
+
+    try {
+      const cachedData = await redis.get(key);
+
+      if (cachedData) {
+        return res.status(httpStatus.OK).json(cachedData);
+      }
+
+      res._cache = async (data, ttl = defaultTtl) => {
+        await redis.set(key, ttl, JSON.stringify(data));
+        return res.status(httpStatus.OK).json(data);
+      };
+
+      next();
+    } catch (error) {
+      console.log("There are error during cache: ", error.message);
+      next();
+    }
+  };
+};

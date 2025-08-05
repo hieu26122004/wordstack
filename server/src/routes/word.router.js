@@ -4,7 +4,8 @@ import {
   createWordValidator,
   bulkCreateWordValidator,
 } from "../utils/validator.js";
-import { authenticate } from "../middlewares/app.middleware.js";
+import { authenticate, cache } from "../middlewares/app.middleware.js";
+import { getSearchWordKey } from "../utils/keys.js";
 
 const router = express.Router();
 
@@ -15,6 +16,12 @@ router.post(
   authenticate,
   bulkCreateWordValidator,
   wordController.bulkCreateWord
+);
+
+router.get(
+  "/search",
+  cache((req) => getSearchWordKey(req.originalUrl)),
+  wordController.searchWords
 );
 
 export default router;

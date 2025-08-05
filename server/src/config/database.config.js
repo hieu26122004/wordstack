@@ -8,7 +8,6 @@ export default {
     host: DB_HOST,
     dialect: "postgres",
     timezone: "+07:00",
-    logging: false,
   },
   production: {
     username: DB_USER,

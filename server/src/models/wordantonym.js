@@ -7,6 +7,10 @@ export default (sequelize, DataTypes) => {
         foreignKey: "wordId",
         as: "word",
       });
+      WordAntonym.belongsTo(models.Word, {
+        foreignKey: "antonymId",
+        as: "wordAntonym",
+      });
     }
   }
   WordAntonym.init(

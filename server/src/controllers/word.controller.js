@@ -1,7 +1,11 @@
 import httpStatus from "http-status";
 import dbProm from "../models/index.js";
 import { handleAsyncError } from "../utils/async.js";
-import { returnError, returnSuccess } from "../utils/formatter.js";
+import {
+  returnError,
+  returnPagination,
+  returnSuccess,
+} from "../utils/formatter.js";
 
 const db = await dbProm;
 const {
@@ -261,38 +265,237 @@ export const bulkCreateWord = handleAsyncError(async (req, res) => {
     .json(returnSuccess("Words import completed", results));
 });
 
-const fetchWordFromAPI = async (word, retryCount = 3) => {
+export const searchWords = handleAsyncError(async (req, res) => {
+  const {
+    query,
+    searchType = "prefix",
+    limit = 20,
+    offset = 0,
+    partOfSpeech,
+    includeRelated = false,
+  } = req.query;
+
+  if (!query || query.trim().length === 0) {
+    return res
+      .status(httpStatus.BAD_REQUEST)
+      .json(returnError("Search query is required."));
+  }
+
+  const searchQuery = query.trim().toLowerCase();
+  const searchLimit = Math.min(parseInt(limit), 100);
+  const searchOffset = Math.max(parseInt(offset), 0);
+
+  let whereCondition = {};
+  let definitionWhere = {};
+
+  switch (searchType) {
+    case "exact":
+      whereCondition.word = searchQuery;
+      break;
+    case "contains":
+      whereCondition.word = {
+        [db.Sequelize.Op.like]: `%${searchQuery}%`,
+      };
+      break;
+    case "prefix":
+      whereCondition.word = {
+        [db.Sequelize.Op.like]: `${searchQuery}%`,
+      };
+      break;
+    default:
+      whereCondition.word = {
+        [db.Sequelize.Op.like]: `${searchQuery}%`,
+      };
+  }
+
+  if (partOfSpeech) {
+    definitionWhere.partOfSpeech = partOfSpeech;
+  }
+
+  const { count, rows } = await Word.findAndCountAll({
+    where: whereCondition,
+    include: [
+      {
+        model: WordDefinition,
+        where:
+          Object.keys(definitionWhere).length > 0 ? definitionWhere : undefined,
+        as: "definitions",
+        include: [{ model: WordExample, as: "examples", limit: 3 }],
+      },
+    ],
+    limit: searchLimit,
+    offset: searchOffset,
+    order: [
+      [
+        db.Sequelize.literal(
+          `CASE WHEN word = '${searchQuery}' THEN 0 ELSE 1 END`
+        ),
+      ],
+      [
+        db.Sequelize.literal(
+          `CASE WHEN word LIKE '${searchQuery}%' THEN 0 ELSE 1 END`
+        ),
+      ],
+      [db.Sequelize.fn("LENGTH", db.Sequelize.col("word")), "ASC"],
+      ["word", "ASC"],
+    ],
+    distinct: true,
+  });
+
+  let synonyms;
+  let antonyms;
+
+  if (includeRelated === "true") {
+    const wordIds = rows.map((word) => word.id);
+
+    synonyms = await WordSynonym.findAll({
+      where: {
+        wordId: wordIds,
+      },
+      include: [
+        {
+          model: Word,
+          as: "wordSynonym",
+          attributes: [],
+        },
+      ],
+      attributes: [
+        "wordId",
+        [
+          db.Sequelize.fn(
+            "STRING_AGG",
+            db.Sequelize.col("wordSynonym.word"),
+            ","
+          ),
+          "synonyms",
+        ],
+      ],
+      group: ["wordId"],
+      raw: true,
+    });
+
+    antonyms = await WordAntonym.findAll({
+      where: {
+        wordId: wordIds,
+      },
+      include: [
+        {
+          model: Word,
+          as: "wordAntonym",
+          attributes: [],
+        },
+      ],
+      attributes: [
+        "wordId",
+        [
+          db.Sequelize.fn(
+            "STRING_AGG",
+            db.Sequelize.col("wordAntonym.word"),
+            ","
+          ),
+          "antonyms",
+        ],
+      ],
+      group: ["wordId"],
+      raw: true,
+    });
+  }
+
+  const results = rows.map((word) => {
+    const result = {
+      id: word.id,
+      word: word.word,
+      phonetic: word.phonetic,
+      pronunciationUrl: word.pronunciationUrl,
+      createdAt: word.createdAt,
+      updatedAt: word.updatedAt,
+      definitions:
+        word.definitions?.map((def) => ({
+          id: def.id,
+          definition: def.definition,
+          partOfSpeech: def.partOfSpeech,
+          examples:
+            def.examples?.map((ex) => ({
+              text: ex.exampleText,
+              translation: ex.translation,
+            })) || [],
+        })) || [],
+    };
+
+    if (includeRelated === "true") {
+      if (synonyms.find((syn) => syn.wordId === result.id)) {
+        result.synonyms = synonyms
+          .find((syn) => syn.wordId === result.id)
+          .synonyms.split(",");
+      }
+
+      if (antonyms.find((ant) => ant.wordId === result.id)) {
+        result.antonyms = antonyms
+          .find((ant) => ant.wordId === result.id)
+          .antonyms.split(",");
+      }
+    }
+
+    return result;
+  });
+
+  return res.status(httpStatus.OK).json(
+    returnPagination(
+      "Search completed successfully.",
+      {
+        query: searchQuery,
+        searchType,
+        results,
+      },
+      { count, page: Math.floor(offset / limit) + 1, limit: searchLimit }
+    )
+  );
+});
+
+////////////////////////////////////////////////////////////////// HELPER FUNCTIONS //////////////////////////////////////////////////////////////////
+
+export const fetchWordFromAPI = async (word, retryCount = 3) => {
   try {
     const response = await fetch(
       `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`
     );
 
     if (response.status === 429) {
-      console.warn(`Too many requests for "${word}", retrying in 0.5s...`);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      console.warn(
+        `Too many requests for "${word}", retrying in ${3000 / 1000}s...`
+      );
 
       if (retryCount > 0) {
-        return await fetchWordFromAPI(word, retryCount - 1);
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        return await fetchWordFromAPI(word, retryCount - 1, 3000);
       } else {
         console.error(`Exceeded retry attempts for "${word}"`);
         return null;
       }
     }
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(
+        `Failed response for word "${word}" — Status: ${response.status}`
+      );
+      return null;
+    }
 
     const data = await response.json();
 
-    if (!data || data.length === 0) return null;
-    const entry = data[0];
-    return entry;
+    if (!data || data.length === 0) {
+      console.warn(`Empty data for word "${word}"`);
+      return null;
+    }
+
+    return data[0];
   } catch (error) {
-    console.log(`Failed to fetch data for word: ${word}\n`, error);
+    console.error(`Error fetching "${word}": ${error.message}`);
     return null;
   }
 };
 
-const processAPIData = (apiData, originalWord) => {
+export const processAPIData = (apiData, originalWord) => {
   if (!apiData) return null;
 
   const result = {
@@ -357,7 +560,7 @@ const processAPIData = (apiData, originalWord) => {
   return result.definitions.length > 0 ? result : null;
 };
 
-const findOrCreateRelatedWord = async (wordText, transaction) => {
+export const findOrCreateRelatedWord = async (wordText, transaction) => {
   const cleanWord = wordText.trim().toLowerCase();
 
   let relatedWord = await Word.findOne({

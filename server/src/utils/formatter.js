@@ -25,6 +25,7 @@ export const returnPagination = (message = "Success", data, pagination) => {
   const totalPages = Math.ceil(count / limit);
   const currentPage = Number(page);
   const hasNextPage = currentPage < totalPages;
+  const hasPrevPage = currentPage > 1;
 
   return {
     status: "success",
@@ -37,6 +38,7 @@ export const returnPagination = (message = "Success", data, pagination) => {
       currentPage,
       limit: Number(limit),
       hasNextPage,
+      hasPrevPage,
     },
   };
 };
