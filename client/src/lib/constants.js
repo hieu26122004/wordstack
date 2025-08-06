@@ -2,10 +2,9 @@ export const paths = {
   home: "/",
   login: "/login",
   register: "/register",
-  myStack: "/stack",
+  stack: "/stack",
   learn: "/learn",
   profile: "/profile",
-  search: "/search",
 };
 
 export const APP_NAME = "Wordstack";
@@ -13,7 +12,7 @@ export const APP_NAME = "Wordstack";
 export const SERVER_URL = import.meta.env.DEV ? "http://localhost:8000" : "";
 
 export const HEADER_NAV_LINKs = [
-  { id: "header-nav-1", text: "My Stack", url: paths.myStack },
+  { id: "header-nav-1", text: "Stack", url: paths.stack },
   { id: "header-nav-2", text: "Learn", url: paths.learn },
   { id: "header-nav-3", text: "Profile", url: paths.profile },
 ];

@@ -72,17 +72,17 @@ export const cache = (keyGenerator, defaultTtl = 3600) => {
       const cachedData = await redis.get(key);
 
       if (cachedData) {
-        return res.status(httpStatus.OK).json(cachedData);
+        return res.status(httpStatus.OK).json(JSON.parse(cachedData));
       }
 
       res._cache = async (data, ttl = defaultTtl) => {
-        await redis.set(key, ttl, JSON.stringify(data));
+        await redis.set(key, JSON.stringify(data), "EX", ttl);
         return res.status(httpStatus.OK).json(data);
       };
 
       next();
     } catch (error) {
-      console.log("There are error during cache: ", error.message);
+      console.error("There was an error during cache:", error.message);
       next();
     }
   };

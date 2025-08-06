@@ -5,7 +5,7 @@ import {
   bulkCreateWordValidator,
 } from "../utils/validator.js";
 import { authenticate, cache } from "../middlewares/app.middleware.js";
-import { getSearchWordKey } from "../utils/keys.js";
+import { getGetWordsKey } from "../utils/keys.js";
 
 const router = express.Router();
 
@@ -19,9 +19,14 @@ router.post(
 );
 
 router.get(
-  "/search",
-  cache((req) => getSearchWordKey(req.originalUrl)),
-  wordController.searchWords
+  "",
+  authenticate,
+  cache((req) => getGetWordsKey(req.user.id, req.originalUrl)),
+  wordController.gethWords
 );
+
+router.post("/:wordId/save", authenticate, wordController.saveWord);
+
+router.delete("/:wordId/unsave", authenticate, wordController.unsaveWord);
 
 export default router;

@@ -8,7 +8,6 @@ import LoginPage from "@/features/auth/pages/LoginPage";
 import RegisterPage from "@/features/auth/pages/RegisterPage";
 import MyStackPage from "@/features/word/pages/MyStackPage";
 import LearnPage from "@/features/word/pages/LearnPage";
-import SearchPage from "@/features/word/pages/SearchPage";
 import ProfilePage from "@/pages/ProfilePage";
 
 const App = () => {
@@ -19,9 +18,8 @@ const App = () => {
           <Route path={paths.register} element={<RegisterPage />} />
           <Route path={paths.login} element={<LoginPage />} />
           <Route path={paths.home} element={<HomePage />} />
-          <Route path={paths.myStack} element={<MyStackPage />} />
+          <Route path={paths.stack} element={<MyStackPage />} />
           <Route path={paths.learn} element={<LearnPage />} />
-          <Route path={paths.search} element={<SearchPage />} />
           <Route path={paths.profile} element={<ProfilePage />} />
         </Route>
       </Routes>

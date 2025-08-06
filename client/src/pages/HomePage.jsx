@@ -2,8 +2,19 @@ import React from "react";
 import Duong from "@/components/icons/Duong";
 import HaiToGiay from "@/components/icons/HaiToGiay";
 import KinhLup from "@/components/icons/KinhLup";
+import { useNavigate } from "react-router-dom";
+import { paths } from "@/lib/constants";
 
 const HomePage = () => {
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const navigate = useNavigate();
+
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      navigate(paths.stack);
+    }
+  };
+
   return (
     <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
       <div className="@container">
@@ -28,11 +39,16 @@ const HomePage = () => {
                   <KinhLup className="size-5" />
                 </div>
                 <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Enter a word to look up"
                   className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border border-[#366347] bg-[#1b3124] focus:border-[#366347] h-full placeholder:text-[#96c5a8] px-[15px] rounded-r-none border-r-0 pr-2 rounded-l-none border-l-0 pl-2 text-sm font-normal leading-normal @[480px]:text-base @[480px]:font-normal @[480px]:leading-normal"
                 />
                 <div className="flex items-center justify-center rounded-r-lg border-l-0 border border-[#366347] bg-[#1b3124] pr-[7px]">
-                  <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#39e079] text-[#122118] text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base @[480px]:font-bold @[480px]:leading-normal @[480px]:tracking-[0.015em]">
+                  <button
+                    onClick={handleSearch}
+                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#39e079] text-[#122118] text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base @[480px]:font-bold @[480px]:leading-normal @[480px]:tracking-[0.015em]"
+                  >
                     <span className="truncate">Find Meaning</span>
                   </button>
                 </div>

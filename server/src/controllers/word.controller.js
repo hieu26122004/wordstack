@@ -1,6 +1,8 @@
 import httpStatus from "http-status";
 import dbProm from "../models/index.js";
 import { handleAsyncError } from "../utils/async.js";
+import { getGetWordsKey } from "../utils/keys.js";
+import redis from "../config/redis.config.js";
 import {
   returnError,
   returnPagination,
@@ -15,6 +17,8 @@ const {
   WordSynonym,
   WordAntonym,
   sequelize,
+  UserSavedWord,
+  WordLearningProgress,
 } = db;
 
 export const createWord = handleAsyncError(async (req, res) => {
@@ -265,191 +269,255 @@ export const bulkCreateWord = handleAsyncError(async (req, res) => {
     .json(returnSuccess("Words import completed", results));
 });
 
-export const searchWords = handleAsyncError(async (req, res) => {
+export const gethWords = handleAsyncError(async (req, res) => {
+  const userId = req.user.id;
   const {
     query,
     searchType = "prefix",
     limit = 20,
-    offset = 0,
-    partOfSpeech,
-    includeRelated = false,
+    page = 1,
+    includeRelated = true,
+    savedStatus,
   } = req.query;
 
-  if (!query || query.trim().length === 0) {
-    return res
-      .status(httpStatus.BAD_REQUEST)
-      .json(returnError("Search query is required."));
+  const parsedLimit = Math.min(parseInt(limit), 100);
+  const parsedPage = Math.max(parseInt(page), 1);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const whereCondition = {};
+  const replacements = { userId };
+  let order = [["word", "ASC"]];
+
+  // XỬ LÝ KHI CÓ TÌM KIẾM
+  if (query?.trim()) {
+    const searchQuery = query.trim().toLowerCase();
+    const escapedQuery = searchQuery.replace(/[\\%_]/g, "\\$&");
+
+    const searchConditions = {
+      exact: { word: searchQuery },
+      contains: { word: { [db.Sequelize.Op.like]: `%${escapedQuery}%` } },
+      prefix: { word: { [db.Sequelize.Op.like]: `${escapedQuery}%` } },
+    };
+
+    Object.assign(
+      whereCondition,
+      searchConditions[searchType] || searchConditions.prefix
+    );
+
+    order = [
+      [
+        db.sequelize.literal(
+          `CASE WHEN "Word"."word" = :searchQuery THEN 0 ELSE 1 END`
+        ),
+      ],
+      [
+        db.sequelize.literal(
+          `CASE WHEN "Word"."word" LIKE :prefix THEN 0 ELSE 1 END`
+        ),
+      ],
+      [db.sequelize.fn("LENGTH", db.sequelize.col("Word.word")), "ASC"],
+      ...order,
+    ];
+
+    replacements.searchQuery = searchQuery;
+    replacements.prefix = `${escapedQuery}%`;
   }
 
-  const searchQuery = query.trim().toLowerCase();
-  const searchLimit = Math.min(parseInt(limit), 100);
-  const searchOffset = Math.max(parseInt(offset), 0);
-
-  let whereCondition = {};
-  let definitionWhere = {};
-
-  switch (searchType) {
-    case "exact":
-      whereCondition.word = searchQuery;
-      break;
-    case "contains":
-      whereCondition.word = {
-        [db.Sequelize.Op.like]: `%${searchQuery}%`,
-      };
-      break;
-    case "prefix":
-      whereCondition.word = {
-        [db.Sequelize.Op.like]: `${searchQuery}%`,
-      };
-      break;
-    default:
-      whereCondition.word = {
-        [db.Sequelize.Op.like]: `${searchQuery}%`,
-      };
+  // XỬ LÝ KHI CÓ LỌC THEO TRẠNG THÁI LƯU
+  if (savedStatus === "saved") {
+    whereCondition[db.Sequelize.Op.and] = [
+      db.sequelize.literal(`
+      EXISTS (
+        SELECT 1 FROM user_saved_words 
+        WHERE user_id = :userId 
+        AND word_id = "Word"."id"
+      )
+    `),
+    ];
+  } else if (savedStatus === "unsaved") {
+    whereCondition[db.Sequelize.Op.and] = [
+      db.sequelize.literal(`
+      NOT EXISTS (
+        SELECT 1 FROM user_saved_words 
+        WHERE user_id = :userId 
+        AND word_id = "Word"."id"
+      )
+    `),
+    ];
   }
 
-  if (partOfSpeech) {
-    definitionWhere.partOfSpeech = partOfSpeech;
-  }
-
-  const { count, rows } = await Word.findAndCountAll({
+  //TOÀN BỘ TRUY VẤN
+  const wordQuery = {
     where: whereCondition,
+    attributes: {
+      include: [
+        [
+          db.sequelize.literal(`
+          EXISTS (SELECT 1 FROM user_saved_words 
+          WHERE user_id = :userId 
+          AND word_id = "Word"."id")
+        `),
+          "isSaved",
+        ],
+      ],
+    },
     include: [
       {
         model: WordDefinition,
-        where:
-          Object.keys(definitionWhere).length > 0 ? definitionWhere : undefined,
         as: "definitions",
-        include: [{ model: WordExample, as: "examples", limit: 3 }],
+        attributes: ["id", "definition", "partOfSpeech"],
+        include: [
+          {
+            model: WordExample,
+            as: "examples",
+            attributes: ["id", "exampleText", "translation"],
+            limit: 3,
+          },
+        ],
       },
     ],
-    limit: searchLimit,
-    offset: searchOffset,
-    order: [
-      [
-        db.Sequelize.literal(
-          `CASE WHEN word = '${searchQuery}' THEN 0 ELSE 1 END`
-        ),
-      ],
-      [
-        db.Sequelize.literal(
-          `CASE WHEN word LIKE '${searchQuery}%' THEN 0 ELSE 1 END`
-        ),
-      ],
-      [db.Sequelize.fn("LENGTH", db.Sequelize.col("word")), "ASC"],
-      ["word", "ASC"],
-    ],
+    limit: parsedLimit,
+    offset,
+    order,
+    replacements,
     distinct: true,
-  });
+  };
 
-  let synonyms;
-  let antonyms;
+  const { count, rows: words } = await Word.findAndCountAll(wordQuery);
 
-  if (includeRelated === "true") {
-    const wordIds = rows.map((word) => word.id);
+  const [synonymsMap, antonymsMap] = await Promise.all([
+    includeRelated && words.length
+      ? getWordRelations(WordSynonym, "synonym", words)
+      : Promise.resolve({}),
+    includeRelated && words.length
+      ? getWordRelations(WordAntonym, "antonym", words)
+      : Promise.resolve({}),
+  ]);
 
-    synonyms = await WordSynonym.findAll({
-      where: {
-        wordId: wordIds,
-      },
-      include: [
-        {
-          model: Word,
-          as: "wordSynonym",
-          attributes: [],
-        },
-      ],
-      attributes: [
-        "wordId",
-        [
-          db.Sequelize.fn(
-            "STRING_AGG",
-            db.Sequelize.col("wordSynonym.word"),
-            ","
-          ),
-          "synonyms",
-        ],
-      ],
-      group: ["wordId"],
-      raw: true,
-    });
+  const results = words.map((word) => ({
+    id: word.id,
+    word: word.word,
+    phonetic: word.phonetic,
+    pronunciationUrl: word.pronunciationUrl,
+    isSaved: word.get("isSaved"),
+    definitions:
+      word.definitions?.map((def) => ({
+        id: def.id,
+        definition: def.definition,
+        partOfSpeech: def.partOfSpeech,
+        examples:
+          def.examples?.map((ex) => ({
+            text: ex.exampleText,
+            translation: ex.translation,
+          })) || [],
+      })) || [],
+    ...(includeRelated && {
+      synonyms: synonymsMap[word.id] || [],
+      antonyms: antonymsMap[word.id] || [],
+    }),
+  }));
 
-    antonyms = await WordAntonym.findAll({
-      where: {
-        wordId: wordIds,
-      },
-      include: [
-        {
-          model: Word,
-          as: "wordAntonym",
-          attributes: [],
-        },
-      ],
-      attributes: [
-        "wordId",
-        [
-          db.Sequelize.fn(
-            "STRING_AGG",
-            db.Sequelize.col("wordAntonym.word"),
-            ","
-          ),
-          "antonyms",
-        ],
-      ],
-      group: ["wordId"],
-      raw: true,
-    });
+  return res
+    .status(httpStatus.OK)
+    ._cache(
+      returnPagination(
+        "Get words successfully.",
+        { query, searchType, results },
+        { count, page: parsedPage, limit: parsedLimit }
+      )
+    );
+});
+
+export const saveWord = handleAsyncError(async (req, res) => {
+  const { notes } = req.body;
+  const { wordId } = req.params;
+  const userId = req.user.id;
+
+  const word = await Word.findByPk(wordId);
+  if (!word) {
+    return res
+      .status(httpStatus.BAD_REQUEST)
+      .json(returnError("Word not found"));
   }
 
-  const results = rows.map((word) => {
-    const result = {
-      id: word.id,
-      word: word.word,
-      phonetic: word.phonetic,
-      pronunciationUrl: word.pronunciationUrl,
-      createdAt: word.createdAt,
-      updatedAt: word.updatedAt,
-      definitions:
-        word.definitions?.map((def) => ({
-          id: def.id,
-          definition: def.definition,
-          partOfSpeech: def.partOfSpeech,
-          examples:
-            def.examples?.map((ex) => ({
-              text: ex.exampleText,
-              translation: ex.translation,
-            })) || [],
-        })) || [],
-    };
-
-    if (includeRelated === "true") {
-      if (synonyms.find((syn) => syn.wordId === result.id)) {
-        result.synonyms = synonyms
-          .find((syn) => syn.wordId === result.id)
-          .synonyms.split(",");
-      }
-
-      if (antonyms.find((ant) => ant.wordId === result.id)) {
-        result.antonyms = antonyms
-          .find((ant) => ant.wordId === result.id)
-          .antonyms.split(",");
-      }
-    }
-
-    return result;
+  const existingSavedWord = await UserSavedWord.findOne({
+    where: {
+      userId: userId,
+      wordId: wordId,
+    },
   });
 
-  return res.status(httpStatus.OK).json(
-    returnPagination(
-      "Search completed successfully.",
+  if (existingSavedWord) {
+    return res
+      .status(httpStatus.CONFLICT)
+      .json(returnError("Word already saved"));
+  }
+
+  const savedWord = await UserSavedWord.create({
+    userId: userId,
+    wordId: wordId,
+    notes: notes || null,
+  });
+
+  await WordLearningProgress.create({
+    userSavedWordId: savedWord.id,
+    masteryLevel: 0,
+    correctCount: 0,
+    wrongCount: 0,
+    reviewInterval: 1,
+    nextReviewAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  });
+
+  const savedWordWithDetails = await UserSavedWord.findByPk(savedWord.id, {
+    include: [
       {
-        query: searchQuery,
-        searchType,
-        results,
+        model: Word,
+        as: "word",
+        include: [
+          {
+            model: WordDefinition,
+            as: "definitions",
+            include: [
+              {
+                model: WordExample,
+                as: "examples",
+                limit: 1,
+              },
+            ],
+          },
+        ],
       },
-      { count, page: Math.floor(offset / limit) + 1, limit: searchLimit }
-    )
-  );
+    ],
+  });
+
+  await deleteUserGetWordsCache(userId);
+
+  return res
+    .status(httpStatus.CREATED)
+    .json(returnSuccess("Word saved successfully", savedWordWithDetails));
+});
+
+export const unsaveWord = handleAsyncError(async (req, res) => {
+  const userId = req.user.id;
+  const { wordId } = req.params;
+
+  const savedWord = await UserSavedWord.findOne({
+    where: { userId, wordId },
+  });
+
+  if (!savedWord) {
+    return res
+      .status(httpStatus.NOT_FOUND)
+      .json(returnError("Saved word not found."));
+  }
+
+  await savedWord.destroy();
+
+  await deleteUserGetWordsCache(userId);
+
+  return res
+    .status(httpStatus.OK)
+    .json(returnSuccess("Word removed from saved list."));
 });
 
 ////////////////////////////////////////////////////////////////// HELPER FUNCTIONS //////////////////////////////////////////////////////////////////
@@ -587,4 +655,37 @@ export const findOrCreateRelatedWord = async (wordText, transaction) => {
   );
 
   return relatedWord.id;
+};
+
+const getWordRelations = async (RelationModel, type, words) => {
+  const wordIds = words.map((w) => w.id);
+  const relations = await RelationModel.findAll({
+    where: { wordId: wordIds },
+    include: [
+      {
+        model: Word,
+        as: `word${type[0].toUpperCase() + type.slice(1)}`,
+        attributes: ["word"],
+      },
+    ],
+    raw: true,
+  });
+
+  const resultMap = {};
+  relations.forEach((rel) => {
+    if (!resultMap[rel.wordId]) resultMap[rel.wordId] = [];
+    resultMap[rel.wordId].push(
+      rel[`word${type[0].toUpperCase() + type.slice(1)}.word`]
+    );
+  });
+
+  return resultMap;
+};
+
+const deleteUserGetWordsCache = async (userId) => {
+  const prefix = getGetWordsKey(userId, "*");
+  const keys = await redis.keys(prefix);
+  if (Array.isArray(keys) && keys.length > 0) {
+    await redis.del(keys);
+  }
 };
