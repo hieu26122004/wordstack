@@ -112,7 +112,7 @@ const AppLayout = () => {
                 </a>
               </div>
               <p className="text-[#96c5a8] text-base font-normal leading-normal">
-                @2024 VocabMate. All rights reserved.
+                @2024 WordStack. All rights reserved.
               </p>
             </footer>
           </div>

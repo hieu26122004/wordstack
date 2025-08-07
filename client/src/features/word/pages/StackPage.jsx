@@ -7,7 +7,7 @@ import useWords from "../hooks/useWords";
 import { getPageNumbers } from "../word.util";
 import Select from "@/components/Select";
 
-const MyStackPage = () => {
+const StackPage = () => {
   const [expandedWords, setExpandedWords] = React.useState(new Set());
   const { words, loading, error, pagination, actions, params } = useWords();
 
@@ -238,4 +238,4 @@ const MyStackPage = () => {
   );
 };
 
-export default MyStackPage;
+export default StackPage;

@@ -6,7 +6,7 @@ import AppLayout from "@layouts/AppLayout";
 import HomePage from "@pages/HomePage";
 import LoginPage from "@/features/auth/pages/LoginPage";
 import RegisterPage from "@/features/auth/pages/RegisterPage";
-import MyStackPage from "@/features/word/pages/MyStackPage";
+import StackPage from "@/features/word/pages/StackPage";
 import LearnPage from "@/features/word/pages/LearnPage";
 import ProfilePage from "@/pages/ProfilePage";
 
@@ -18,7 +18,7 @@ const App = () => {
           <Route path={paths.register} element={<RegisterPage />} />
           <Route path={paths.login} element={<LoginPage />} />
           <Route path={paths.home} element={<HomePage />} />
-          <Route path={paths.stack} element={<MyStackPage />} />
+          <Route path={paths.stack} element={<StackPage />} />
           <Route path={paths.learn} element={<LearnPage />} />
           <Route path={paths.profile} element={<ProfilePage />} />
         </Route>

@@ -86,10 +86,10 @@ const HomePage = () => {
       <div className="flex flex-col gap-10 px-4 py-10 @container">
         <div className="flex flex-col gap-4">
           <h1 className="text-white tracking-light text-[32px] font-bold leading-tight @[480px]:text-4xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em] max-w-[720px]">
-            VocabMate: Your Personalized Vocabulary Learning Journey
+            WordStack: Your Personalized Vocabulary Learning Journey
           </h1>
           <p className="text-white text-base font-normal leading-normal max-w-[720px]">
-            Discover the power of tailored learning with VocabMate. Our platform
+            Discover the power of tailored learning with WordStack. Our platform
             adapts to your pace and style, ensuring effective and enjoyable
             vocabulary acquisition.
           </p>
@@ -155,10 +155,10 @@ const HomePage = () => {
         </div>
       </div>
       <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">
-        Why Choose VocabMate?
+        Why Choose WordStack?
       </h2>
       <p className="text-white text-base font-normal leading-normal pb-3 pt-1 px-4">
-        VocabMate offers a personalized, user-friendly experience for learning
+        WordStack offers a personalized, user-friendly experience for learning
         English vocabulary. No account needed, learn anytime, anywhere.
       </p>
     </div>

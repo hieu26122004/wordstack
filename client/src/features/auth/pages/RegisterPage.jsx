@@ -23,8 +23,8 @@ const RegisterPage = () => {
       autoComplete="off"
       className="layout-content-container flex flex-col w-[512px] max-w-[512px] py-5 flex-1"
     >
-      <h2 className="tracking-light text-[28px] font-bold leading-tight px-4 text-center pb-3 pt-5">
-        Welcome to VocabMate!
+      <h2 className="text-white tracking-light text-[28px] font-bold leading-tight px-4 text-center pb-3 pt-5">
+        Welcome to WordStack!
       </h2>
 
       {/* Username */}
@@ -37,7 +37,7 @@ const RegisterPage = () => {
             autoComplete="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="form-input flex w-full flex-1 resize-none rounded-lg border h-14 p-[15px] text-base font-normal leading-normal placeholder:text-text-secondary focus:outline-0 focus:ring-0 dark:bg-[#2b3136]"
+            className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border-none bg-[#264532] focus:border-none h-14 placeholder:text-[#96c5a8] p-4 text-base font-normal leading-normal"
           />
         </label>
       </div>
@@ -52,7 +52,7 @@ const RegisterPage = () => {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="form-input flex w-full flex-1 resize-none rounded-lg border h-14 p-[15px] text-base font-normal leading-normal placeholder:text-text-secondary focus:outline-0 focus:ring-0 dark:bg-[#2b3136]"
+            className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border-none bg-[#264532] focus:border-none h-14 placeholder:text-[#96c5a8] p-4 text-base font-normal leading-normal"
           />
         </label>
       </div>
@@ -67,7 +67,7 @@ const RegisterPage = () => {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="form-input flex w-full flex-1 resize-none rounded-lg border h-14 p-[15px] text-base font-normal leading-normal placeholder:text-text-secondary focus:outline-0 focus:ring-0 dark:bg-[#2b3136]"
+            className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border-none bg-[#264532] focus:border-none h-14 placeholder:text-[#96c5a8] p-4 text-base font-normal leading-normal"
           />
         </label>
       </div>
@@ -77,7 +77,7 @@ const RegisterPage = () => {
         <button
           disabled={loading}
           type="submit"
-          className="flex h-10 flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-accent-primary px-4 text-sm font-bold leading-normal tracking-[0.015em] text-text-accent disabled:cursor-wait"
+          className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 flex-1 bg-[#39e079] text-[#122118] text-sm font-bold leading-normal tracking-[0.015em] disabled:cursor-wait"
         >
           <span className="truncate">
             {loading ? "Registering..." : "Register"}
@@ -86,7 +86,7 @@ const RegisterPage = () => {
       </div>
 
       {/* Or continue with */}
-      <p className="text-base font-normal leading-normal pb-3 pt-1 px-4 text-center">
+      <p className="text-white text-base font-normal leading-normal pb-3 pt-1 px-4 text-center">
         Or continue with
       </p>
 
@@ -97,7 +97,7 @@ const RegisterPage = () => {
             disabled={loading}
             type="button"
             onClick={handleLoginWithGoogle}
-            className="flex h-10 grow cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg bg-[#f0f2f4] px-4 text-sm font-bold leading-normal tracking-[0.015em] dark:bg-[#2b3136] disabled:cursor-wait"
+            className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#264532] text-white text-sm font-bold leading-normal tracking-[0.015em] grow gap-2 disabled:cursor-wait"
           >
             <GoogleIcon className="size-5" />
             <span className="truncate">Continue with Google</span>
@@ -108,7 +108,7 @@ const RegisterPage = () => {
             disabled={loading}
             type="button"
             onClick={handleLoginWithGoogle}
-            className="flex h-10 grow cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg bg-[#f0f2f4] px-4 text-sm font-bold leading-normal tracking-[0.015em] dark:bg-[#2b3136] disabled:cursor-wait"
+            className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#264532] text-white text-sm font-bold leading-normal tracking-[0.015em] grow gap-2 disabled:cursor-wait"
           >
             <FacebookIcon className="size-5" />
             <span className="truncate">Continue with Facebook</span>
@@ -119,7 +119,7 @@ const RegisterPage = () => {
       {/* Link to login page */}
       <Link
         to={paths.login}
-        className="text-text-secondary text-sm font-normal leading-normal pb-3 pt-1 px-4 text-center underline"
+        className="text-[#96c5a8] text-sm font-normal leading-normal pb-3 pt-1 px-4 text-center underline"
       >
         Already have an account? Log in
       </Link>
